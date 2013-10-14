@@ -14,7 +14,7 @@ type Controller struct {
 	Templates    TemplateMap
 }
 
-var TemplatePath = os.ExpandEnv("$GOPATH/src/skepticalpengu.in/penguinbook/views/")
+var TemplatePath = os.ExpandEnv("$GOPATH/src/github.com/octoberxp/glaze/views/")
 
 func NewController() (*Controller, error) {
 	tmpl, err := template.ParseFiles(TemplatePath + "main/base.html")

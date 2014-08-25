@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"net/http"
-	"github.com/octoberxp/glaze/core"
+	"github.com/octoberxp/glaze/glaze"
 )
 
 type Public struct {

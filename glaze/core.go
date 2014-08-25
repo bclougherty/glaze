@@ -1,4 +1,4 @@
-package core
+package glaze
 
 import (
 	"html/template"

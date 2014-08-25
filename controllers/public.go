@@ -2,20 +2,21 @@ package controllers
 
 import (
 	"net/http"
+	"os"
 	"github.com/octoberxp/glaze/glaze"
 )
 
 type Public struct {
-	*core.Controller
+	*glaze.Controller
 }
 
 func NewPublicController() *Public {
-	controller, err := core.NewController()
+	controller, err := glaze.NewController(os.ExpandEnv("./views/"))
 	if err != nil {
 		panic(err)
 	}
 
-	controller.LoadTemplates(core.TemplatePath + "public/*.html")
+	controller.LoadTemplates("public/*.html")
 
 	return &Public{Controller: controller}
 }

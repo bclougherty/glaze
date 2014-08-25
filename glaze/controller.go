@@ -3,26 +3,26 @@ package glaze
 import (
 	"html/template"
 	"net/http"
-	"os"
 	"path/filepath"
 )
 
-type TemplateMap map[string]*template.Template
 
 type Controller struct {
 	BaseTemplate *template.Template
 	Templates    TemplateMap
+
+	templatePath string
 }
 
-var TemplatePath = os.ExpandEnv("./views/")
+type TemplateMap map[string]*template.Template
 
-func NewController() (*Controller, error) {
-	tmpl, err := template.ParseFiles(TemplatePath + "main/base.html")
+func NewController(templatePath string) (*Controller, error) {
+	tmpl, err := template.ParseFiles(templatePath + "main/base.html")
 	if err != nil {
 		return nil, err
 	}
 
-	return &Controller{BaseTemplate: tmpl}, nil
+	return &Controller{BaseTemplate: tmpl, templatePath: templatePath}, nil
 }
 
 func (controller *Controller) RenderPage(writer http.ResponseWriter, templateName string, data interface{}) {
@@ -42,7 +42,7 @@ func (controller *Controller) RenderTemplate(writer http.ResponseWriter, templat
 }
 
 func (controller *Controller) LoadTemplates(templatePath string) {
-	files, err := filepath.Glob(templatePath)
+	files, err := filepath.Glob(controller.templatePath + templatePath)
 	if err != nil {
 		panic(err)
 	}

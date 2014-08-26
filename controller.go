@@ -18,13 +18,17 @@ type Controller struct {
 
 type TemplateMap map[string]*template.Template
 
-func NewController(templatePath string) (*Controller, error) {
+func NewController(templatePath, controllerTemplatePath string) (*Controller, error) {
 	tmpl, err := template.ParseFiles(path.Join(templatePath, "layouts/default.html"))
 	if err != nil {
 		return nil, err
 	}
 
-	return &Controller{BaseTemplate: tmpl, templatePath: templatePath}, nil
+	controller := &Controller{BaseTemplate: tmpl, templatePath: templatePath}
+
+	controller.LoadTemplates(controllerTemplatePath)
+
+	return controller, nil
 }
 
 func (controller *Controller) RenderPage(writer http.ResponseWriter, templateName string, data interface{}) {
@@ -44,6 +48,10 @@ func (controller *Controller) RenderTemplate(writer http.ResponseWriter, templat
 }
 
 func (controller *Controller) LoadTemplates(templatePath string) {
+	if templatePath == "" {
+		return
+	}
+	
 	fullpath := path.Join(controller.templatePath, templatePath, "*.html")
 
 	fmt.Printf("Loading templates from \"%s\"... ", fullpath)

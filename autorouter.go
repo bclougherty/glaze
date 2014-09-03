@@ -8,6 +8,9 @@ import (
 	"github.com/octoberxp/go-utils/stringutils"
 )
 
+// GenerateRoutes generates a map of urls to controller methods, suitable for passing off to http.Handle.
+// This is still in progress - the idea is to do all the reflection at load time and pass back a simple
+// map of route to function. It's not quite there yet, because I haven't figured out the last piece.
 func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWriter, r *http.Request) {
 	// create a Glaze controller and get a list of its methods
 	// so that we can exclude them from the list of handle-able methods
@@ -16,7 +19,7 @@ func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWrite
 	structType := reflect.TypeOf(glazeController)
 	numberOfMethods := structType.NumMethod()
 
-	glazeControllerMethods := make([]string, 0)
+	var glazeControllerMethods []string
 
 	for i := 0; i < numberOfMethods; i++ {
 		glazeControllerMethods = append(glazeControllerMethods, structType.Method(i).Name)
@@ -24,7 +27,6 @@ func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWrite
 
 	routes := make(map[string]func(w http.ResponseWriter, r *http.Request))
 
-	
 	structType = reflect.TypeOf(controller)
 	controllerName := structType.Elem().Name()
 	numberOfMethods = structType.NumMethod()
@@ -58,6 +60,10 @@ func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWrite
 }
 
 func contains(s []string, e string) bool {
-    for _, a := range s { if a == e { return true } }
-    return false
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

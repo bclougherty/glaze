@@ -15,8 +15,8 @@ This example assumes that you have a view directory laid out like so:
 		index.html
 ```
 
-Glaze will always try to load its default layout from "layouts/default.html"
-under the given view root.
+Glaze will always try to load any layout files from "layouts/*.html"
+under the given view root. The layout should be inside a {{define "layout"}}...{{end}} block.
 
 
 controllers/public.go:

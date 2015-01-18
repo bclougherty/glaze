@@ -3,10 +3,15 @@ package glaze
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"path"
 	"path/filepath"
+
+	"github.com/oxtoacart/bpool"
 )
+
+var bufpool *bpool.BufferPool
 
 // Controller structs hold the data necessary to bind view paths. A Controller
 // can have any number of http handler methods added to it, and calling
@@ -21,57 +26,82 @@ type Controller struct {
 // TemplateMap maps string names to parsed html templates
 type TemplateMap map[string]*template.Template
 
+func init() {
+	bufpool = bpool.NewBufferPool(64)
+}
+
 // NewController will create a basic controller.
 // templatePath is the full path to the template root
 // controllerTemplatePath is the relative path from the template root to
 //     this controller's template directory
-func NewController(templatePath, controllerTemplatePath string) (*Controller, error) {
-	tmpl, err := template.ParseFiles(path.Join(templatePath, "layouts/default.html"))
-	if err != nil {
-		return nil, err
-	}
+func NewController(templatePath, controllerTemplatePath string, funcMap template.FuncMap) (*Controller, error) {
+	controller := &Controller{templatePath: templatePath}
 
-	controller := &Controller{BaseTemplate: tmpl, templatePath: templatePath}
-
-	controller.loadTemplates(controllerTemplatePath)
+	controller.loadTemplates(controllerTemplatePath, funcMap)
 
 	return controller, nil
 }
 
 // RenderTemplate will execute the named template using the given writer
-func (controller *Controller) RenderTemplate(writer http.ResponseWriter, templateName string, data interface{}) {
-	err := controller.Templates[templateName+".html"].Execute(writer, data)
+func (controller *Controller) RenderTemplate(writer http.ResponseWriter, templateName string, data interface{}) error {
+	// Ensure the template exists in the map.
+	_, ok := controller.Templates[templateName+".html"]
+	if !ok {
+		return fmt.Errorf("The template %s does not exist.", templateName)
+	}
 
+	// Create a buffer to temporarily write to and check if any errors were encounted.
+	buf := bufpool.Get()
+	defer bufpool.Put(buf)
+
+	err := controller.Templates[templateName+".html"].ExecuteTemplate(buf, "layout", data)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return err
 	}
+
+	_, err = buf.WriteTo(writer)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (controller *Controller) loadTemplates(templatePath string) {
+func (controller *Controller) loadTemplates(templatePath string, funcMap template.FuncMap) {
 	if templatePath == "" {
 		return
 	}
 
 	fullpath := path.Join(controller.templatePath, templatePath, "*.html")
 
-	fmt.Printf("Loading templates from \"%s\"... ", fullpath)
+	fmt.Printf("Looking for layouts in %s...", path.Join(controller.templatePath, "layouts", "*.html"))
 
-	files, err := filepath.Glob(fullpath)
+	layouts, err := filepath.Glob(path.Join(controller.templatePath, "layouts", "*.html"))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	fmt.Printf("Found %d\n", len(files))
+	fmt.Printf(" found %d\n", len(layouts))
 
-	templates := make(map[string]*template.Template, len(files))
-	for _, file := range files {
-		thisTemplate, err := controller.BaseTemplate.Clone()
-		thisTemplate, err = thisTemplate.ParseFiles(file)
-		if err != nil {
-			panic(err)
+	fmt.Printf("Looking for templates in %s...", fullpath)
+
+	includes, err := filepath.Glob(fullpath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf(" found %d\n", len(includes))
+
+	templates := make(map[string]*template.Template, len(includes))
+
+	for _, layout := range layouts {
+		fmt.Println(layout)
+		for _, file := range includes {
+			name := filepath.Base(file)
+			fmt.Printf("\t%s\n", name)
+			templates[name] = template.Must(template.New(name).Funcs(funcMap).ParseFiles(file, layout))
 		}
-
-		templates[filepath.Base(file)] = thisTemplate
 	}
 
 	controller.Templates = templates

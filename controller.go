@@ -1,6 +1,7 @@
 package glaze
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -68,6 +69,29 @@ func (controller *Controller) RenderTemplate(writer http.ResponseWriter, templat
 	return nil
 }
 
+// RenderJSON will output the contents of data as JSON, setting an appropriate Content-Type header
+func (controller *Controller) RenderJSON(writer http.ResponseWriter, data interface{}) error {
+	// Create a buffer to temporarily write to and check if any errors were encounted.
+	buf := bufpool.Get()
+	defer bufpool.Put(buf)
+
+	enc := json.NewEncoder(buf)
+
+	if err := enc.Encode(&data); err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return err
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+
+	_, err := buf.WriteTo(writer)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (controller *Controller) loadTemplates(templatePath string, funcMap template.FuncMap) {
 	if templatePath == "" {
 		return
@@ -75,31 +99,31 @@ func (controller *Controller) loadTemplates(templatePath string, funcMap templat
 
 	fullpath := path.Join(controller.templatePath, templatePath, "*.html")
 
-	fmt.Printf("Looking for layouts in %s...", path.Join(controller.templatePath, "layouts", "*.html"))
+	// fmt.Printf("Looking for layouts in %s...", path.Join(controller.templatePath, "layouts", "*.html"))
 
 	layouts, err := filepath.Glob(path.Join(controller.templatePath, "layouts", "*.html"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf(" found %d\n", len(layouts))
+	// fmt.Printf(" found %d\n", len(layouts))
 
-	fmt.Printf("Looking for templates in %s...", fullpath)
+	// fmt.Printf("Looking for templates in %s...", fullpath)
 
 	includes, err := filepath.Glob(fullpath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf(" found %d\n", len(includes))
+	// fmt.Printf(" found %d\n", len(includes))
 
 	templates := make(map[string]*template.Template, len(includes))
 
 	for _, layout := range layouts {
-		fmt.Println(layout)
+		// fmt.Println(layout)
 		for _, file := range includes {
 			name := filepath.Base(file)
-			fmt.Printf("\t%s\n", name)
+			// fmt.Printf("\t%s\n", name)
 			templates[name] = template.Must(template.New(name).Funcs(funcMap).ParseFiles(file, layout))
 		}
 	}

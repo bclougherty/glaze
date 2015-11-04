@@ -8,10 +8,19 @@ import (
 	"github.com/octoberxp/go-utils/stringutils"
 )
 
-// GenerateRoutes generates a map of urls to controller methods, suitable for passing off to http.Handle.
-// This is still in progress - the idea is to do all the reflection at load time and pass back a simple
-// map of route to function. It's not quite there yet, because I haven't figured out the last piece.
+// GenerateRoutes calls GenerateRoutesWithPrefix, using the spinal-cased controller class name as the prefix.
 func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWriter, r *http.Request) {
+	structType := reflect.TypeOf(controller)
+	controllerName := structType.Elem().Name()
+
+	return GenerateRoutesWithPrefix(controller, stringutils.CamelToSpinal(controllerName))
+}
+
+// GenerateRoutesWithPrefix generates a map of urls to controller methods, suitable for passing off to http.Handle.
+// It will create one route per public method of controller that is not inherited from GlazeController.
+// Each route will be in the form "/[prefix]/[method-name]", where prefix is preserved exactly, and method names are
+// converted to spinal-case.
+func GenerateRoutesWithPrefix(controller interface{}, prefix string) map[string]func(w http.ResponseWriter, r *http.Request) {
 	// create a Glaze controller and get a list of its methods
 	// so that we can exclude them from the list of handle-able methods
 	glazeController := &Controller{}
@@ -28,7 +37,6 @@ func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWrite
 	routes := make(map[string]func(w http.ResponseWriter, r *http.Request))
 
 	structType = reflect.TypeOf(controller)
-	controllerName := structType.Elem().Name()
 	numberOfMethods = structType.NumMethod()
 
 	requestType := reflect.TypeOf(&http.Request{})
@@ -46,7 +54,7 @@ func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWrite
 			continue
 		}
 
-		routePath := fmt.Sprintf("/%s/%s", stringutils.CamelToSpinal(controllerName), stringutils.CamelToSpinal(method.Name))
+		routePath := fmt.Sprintf("/%s/%s", prefix, stringutils.CamelToSpinal(method.Name))
 
 		routes[routePath] = func(w http.ResponseWriter, r *http.Request) {
 			reflect.ValueOf(controller).MethodByName(method.Name).Call([]reflect.Value{

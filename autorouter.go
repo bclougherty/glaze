@@ -11,7 +11,7 @@ import (
 // GenerateRoutes calls GenerateRoutesWithPrefix, using the spinal-cased controller class name as the prefix.
 func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWriter, r *http.Request) {
 	structType := reflect.TypeOf(controller)
-	controllerName := structType.Elem().Name()
+	controllerName := structType.Name()
 
 	return GenerateRoutesWithPrefix(controller, stringutils.CamelToSpinal(controllerName))
 }

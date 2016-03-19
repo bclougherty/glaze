@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -14,10 +13,17 @@ import (
 
 var bufpool *bpool.BufferPool
 
-// Controller structs hold the data necessary to bind view paths. A Controller
+// Controller is a convenience interface that allows classes with an embedded BaseController
+// to be passed to various glaze methods.
+type Controller interface {
+	RenderHTML(writer http.ResponseWriter, templateName string, data interface{}) error
+	RenderJSON(writer http.ResponseWriter, data interface{}) error
+}
+
+// BaseController structs hold the data necessary to bind view paths. A Controller
 // can have any number of http handler methods added to it, and calling
 // RenderTemplate from within a controller method will execute the given template.
-type Controller struct {
+type BaseController struct {
 	BaseTemplate *template.Template
 	Templates    TemplateMap
 
@@ -35,16 +41,15 @@ func init() {
 // templatePath is the full path to the template root
 // controllerTemplatePath is the relative path from the template root to
 //     this controller's template directory
-func NewController(templatePath, controllerTemplatePath string, funcMap template.FuncMap) (*Controller, error) {
-	controller := &Controller{templatePath: templatePath}
-
+func NewController(templatePath, controllerTemplatePath string, funcMap template.FuncMap) (*BaseController, error) {
+	controller := &BaseController{templatePath: templatePath}
 	controller.loadTemplates(controllerTemplatePath, funcMap)
 
 	return controller, nil
 }
 
-// RenderTemplate will execute the named template using the given writer
-func (controller *Controller) RenderTemplate(writer http.ResponseWriter, templateName string, data interface{}) error {
+// RenderHTML will execute the named template using the given writer
+func (controller *BaseController) RenderHTML(writer http.ResponseWriter, templateName string, data interface{}) error {
 	// Ensure the template exists in the map.
 	_, ok := controller.Templates[templateName+".html"]
 	if !ok {
@@ -70,7 +75,7 @@ func (controller *Controller) RenderTemplate(writer http.ResponseWriter, templat
 }
 
 // RenderJSON will output the contents of data as JSON, setting an appropriate Content-Type header
-func (controller *Controller) RenderJSON(writer http.ResponseWriter, data interface{}) error {
+func (controller *BaseController) RenderJSON(writer http.ResponseWriter, data interface{}) error {
 	// Create a buffer to temporarily write to and check if any errors were encounted.
 	buf := bufpool.Get()
 	defer bufpool.Put(buf)
@@ -92,9 +97,9 @@ func (controller *Controller) RenderJSON(writer http.ResponseWriter, data interf
 	return nil
 }
 
-func (controller *Controller) loadTemplates(templatePath string, funcMap template.FuncMap) {
+func (controller *BaseController) loadTemplates(templatePath string, funcMap template.FuncMap) error {
 	if templatePath == "" {
-		return
+		return fmt.Errorf("Attempted to load templates from an empty path")
 	}
 
 	fullpath := path.Join(controller.templatePath, templatePath, "*.html")
@@ -103,7 +108,7 @@ func (controller *Controller) loadTemplates(templatePath string, funcMap templat
 
 	layouts, err := filepath.Glob(path.Join(controller.templatePath, "layouts", "*.html"))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// fmt.Printf(" found %d\n", len(layouts))
@@ -112,7 +117,7 @@ func (controller *Controller) loadTemplates(templatePath string, funcMap templat
 
 	includes, err := filepath.Glob(fullpath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// fmt.Printf(" found %d\n", len(includes))
@@ -129,4 +134,6 @@ func (controller *Controller) loadTemplates(templatePath string, funcMap templat
 	}
 
 	controller.Templates = templates
+
+	return nil
 }

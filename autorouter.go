@@ -9,7 +9,7 @@ import (
 )
 
 // GenerateRoutes calls GenerateRoutesWithPrefix, using the spinal-cased controller class name as the prefix.
-func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWriter, r *http.Request) {
+func GenerateRoutes(controller Controller) map[string]func(w http.ResponseWriter, r *http.Request) {
 	structType := reflect.TypeOf(controller)
 	controllerName := structType.Name()
 
@@ -17,13 +17,13 @@ func GenerateRoutes(controller interface{}) map[string]func(w http.ResponseWrite
 }
 
 // GenerateRoutesWithPrefix generates a map of urls to controller methods, suitable for passing off to http.Handle.
-// It will create one route per public method of controller that is not inherited from GlazeController.
+// It will create one route per public method of controller that is not a method of the embedded GlazeController.
 // Each route will be in the form "/[prefix]/[method-name]", where prefix is preserved exactly, and method names are
 // converted to spinal-case.
-func GenerateRoutesWithPrefix(controller interface{}, prefix string) map[string]func(w http.ResponseWriter, r *http.Request) {
+func GenerateRoutesWithPrefix(controller Controller, prefix string) map[string]func(w http.ResponseWriter, r *http.Request) {
 	// create a Glaze controller and get a list of its methods
 	// so that we can exclude them from the list of handle-able methods
-	glazeController := &Controller{}
+	glazeController := &BaseController{}
 
 	structType := reflect.TypeOf(glazeController)
 	numberOfMethods := structType.NumMethod()
